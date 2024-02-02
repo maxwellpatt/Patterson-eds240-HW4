@@ -1,0 +1,130 @@
+---
+title: HW2 Exploration
+author: Maxwell Patterson
+---
+
+# Part 2
+
+```{r, message=FALSE}
+# Installing necessary libraries
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(here)
+library(ggthemes)
+```
+
+```{r}
+# Import data
+fantrax_feb1_raw = read.csv(here('data/fantrax_2_1_24.csv'))
+
+# Update column names
+feb1_data = fantrax_feb1_raw %>% 
+  rename(fantasy_team = Status) %>% 
+  clean_names() 
+  
+```
+
+## Wrangling
+
+Luckily, the data is pretty clean already so not many updates need to be made. I will remove players that are not on a roster in the fantasy league to clean up the data and allow the analysis to be honed.
+
+```{r}
+# List of fantasy team abbreviations
+teams_in_league <- c("CCC", "HBC", "BBB", "STARKS", "Jmarr237", "Orcas", "VSL", "GBRAYERS", "BIGFOOTS", "SDP", "maxpat01", "SERP")
+
+# Filtering data for only players that are rostered
+rostered_players <- feb1_data %>% 
+  filter(fantasy_team %in% teams_in_league) 
+
+# Calculate the 90th percentile of fp_g for each age group
+percentile_90 <- rostered_players %>%
+  group_by(age) %>%
+  summarize(percentile_90 = quantile(fp_g, 0.9, na.rm = TRUE))
+
+# Create a new column 'stud' to label players as studs
+rostered_players <- rostered_players %>%
+  left_join(percentile_90, by = "age") %>%
+  mutate(stud = ifelse(fp_g >= percentile_90, "Stud", "Not Stud"))
+
+# Now 'stud' column will indicate whether a player is a "stud" or not
+
+```
+
+## EDA
+
+Box plot of average fantasy points per player on each fantasy team.
+
+```{r}
+# Creating the box plot
+ggplot(rostered_players, aes(x = fantasy_team, y = fp_g)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of FP/G for Each Fantasy Team",
+       x = "Fantasy Team",
+       y = "Fantasy Points per Game (FP/G)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Violin:
+
+```{r}
+ggplot(rostered_players, aes(x = fantasy_team, y = fp_g, fill = fantasy_team)) +
+  geom_violin() +
+  labs(title = "Violin Plot of FP/G Distribution by Fantasy Team",
+       x = "Fantasy Team",
+       y = "Fantasy Points per Game (FP/G)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+```
+
+### Lollipop:
+
+```{r}
+
+# Calculate Z-scores within each age group
+rostered_players <- rostered_players %>%
+  group_by(age) %>%
+  mutate(z_score = scale(f_pts))
+
+# Define the threshold for outliers (e.g., Z-score > 2 or < -2)
+outlier_threshold <- 2
+
+# Filter and print the biggest outliers for each age group
+outliers <- rostered_players %>%
+  filter(abs(z_score) > outlier_threshold) %>%
+  arrange(age, desc(abs(z_score)))
+
+# Print the biggest outliers by age group
+outliers %>%
+  select(age, player, z_score) %>%
+  print(n = Inf)
+
+```
+
+```{r}
+
+# Filter and select the top 20 players based on positive Z-scores
+top_players <- rostered_players %>%
+  filter(z_score > outlier_threshold) %>%
+  arrange(z_score) %>%
+  head(20)
+
+# Create a lollipop plot
+lollipop_plot <- ggplot(top_players, aes(x = reorder(player, z_score), y = z_score)) +
+  geom_segment(aes(xend = reorder(player, z_score), yend = 0), color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  geom_text(aes(label = player), vjust = -0.5, hjust = 1, size = 3) +
+  coord_flip() +  # Flip the coordinates to make it horizontal
+  labs(title = "Highest Z-Scores Relative to Players of the Same Age",
+       x = "Player",
+       y = "Z-Score") +
+  theme_minimal()  # Optional: Use a minimal theme
+
+# Print the lollipop plot
+print(lollipop_plot)
+
+
+
+
+```
