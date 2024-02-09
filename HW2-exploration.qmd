@@ -1,9 +1,13 @@
 ---
-title: HW2 Exploration
-author: Maxwell Patterson
+title: "HW2 Exploration"
+author: "Maxwell Patterson"
+date: 2024-02-08
+format:
+  html:
+    embed-resources: true
 ---
 
-# Part 2a
+# Part 2b
 
 ```{r, message=FALSE}
 
@@ -160,3 +164,18 @@ I have made some strides in determining which teams are better this season when 
 **3.** What challenges do you foresee encountering with your data? These can be data wrangling and / or visualization challenges.
 
 There is not a lot of data that I will be working with, which makes it more complicated to identify and create aesthetic visualizations. Also, there is more data that I will want to clean up but did not get around to in this EDA: players who have been injured all season or who are in the 'Minors' roster spots and do not contribute to fantasy team success this year. As I move forward with the analysis, it will be important to remove these values to better visualize the data that actually matters. Additionally, the roster sizes in the league are pretty large with 22 active players, 3 minors slots, and 2 injured reserve slots. Therefore, there are many times where there will not be room in the starting lineup (10 players) for players who have low fantasy point per game averages. As a result, more weight should be placed on the best players on each roster who are sure to start every game. I will need to
+
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+
+```{r}
+ggplot(rostered_players, aes(x = age, y = fp_g)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2), color = "blue", se = TRUE) +
+  labs(title = "Relationship between Player Age and FP/G with Polynomial Fit",
+       x = "Age",
+       y = "Fantasy Points per Game (FP/G)") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
+
+```
