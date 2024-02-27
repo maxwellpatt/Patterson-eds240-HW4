@@ -13,7 +13,7 @@ I plan to pursue the first option, where I will make 3 different graphics, each 
 
 My question is: **How are each of the teams in my fantasy basketball dyansty league constructed based on player age and fantasy scoring? Which teams are gunning for the championship this season, and which younger teams are set up for success in future years?**
 
-#### 
+This question has changed a bit since the beginning of the quarter. Initially I wanted to also make some visuals on trades that have happened during this season in the fantasy league, but I realized that cleaning and tidying this data would take tons of time and not be as productive or useful for this assignment. So now I am just focusing on the fantasy team comparisons and breakdowns, highlighting age and fantasy points in the analysis.
 
 ### Variables
 
@@ -52,7 +52,7 @@ teams <- c("STARKS", "SERP", "SDP", "Orcas", "maxpat01", "Jmarr237", "HBC", "GBR
 # Define updated team names for enhanced visualization
 new_team_names <- c(STARKS = "Winterfell", SERP = "Slytherin", SDP = "San Diego",
                     Orcas = "Anacortes", maxpat01 = "Santa Barbara", Jmarr237 = "Malibu",
-                    HBC = "Helsinki", GBRAYERS = "Stotches", CCC = "Cream City",
+                    HBC = "Helsinki", GBRAYERS = "Scottsdale", CCC = "Cream City",
                     BIGFOOTS = "Beaverton", BBB = "Bikini Bottom", "$C/$" = "Las Vegas")
 
 # Clean up column names and types
@@ -84,7 +84,9 @@ col_names <- colnames(fantrax_data)
 print(col_names) # UPDATE THIS
 ```
 
-The columns in this cleaned data set that we are most interested in for our scenario are `player`, `fantasy_team`, `f_pts`, `fp_g`, and `age`. Further manipulation and additions to the data will be done as needed to understand the relationships between age, fantasy points (f_pts), and fantasy points per game (fp_g) in the dynasty league.
+The columns in this cleaned data set that I will be using in the analysis `player`, `fantasy_team`, `f_pts`, `fp_g`, and `age`. Further manipulation and additions to the data will be done as needed to understand the relationships between age, fantasy points (f_pts), and fantasy points per game (fp_g) in the dynasty league.
+
+There will be some important data wrangling done in order to create the visuals I have in mind. First, I will filter the data for only teams that are on fantasy rosters so it is easier to work with and understand the player data that actually matters. Next, I will create summary tables of the top 12 players average fantasy points and age for each fantasy roster for plotting purposes. Also, I will create age groups for each team (under 25, 25-29, and over 30) and create a summary table of each fantasy teams total fantasy points, and the fantasy points for each age group for the sunburst chart. All of the summary tables I will create will be fairly straightforward using the filitered Fantrax data for players on fantasy rosters.
 
 ### Inspiration
 
@@ -96,14 +98,18 @@ knitr::include_graphics('images/sunburst_ex.png')
 
 This image made me confident that I can show each of the teams total fantasy scoring in a sunburst plot, and that it won't be too busy/cluttered. There are a ton of subgroups in the outer layers, so this graph inspired me to feel confident about building a sunburst plot of total fantasy points, then broken down by fantasy team, then broken down further by age group for each fantasy team.
 
-### 
+Here is the second visual, a personal favorite of mine:
 
-#### Preliminary code
+```{r, echo=FALSE}
+knitr::include_graphics('images/efficiency.png')
+```
 
-Here I'll define some important data frames that will be used in each of the plots below.
+I just love the texture of this plot, and having the team logos makes it look really nice. I follow this user on Twitter and I feel like the graphics really paint a picture of the league. Also, I want to add annotations to by scatter plot, and I like the simplicity and intentional selection of only certain teams getting an annotation. In my scatter plot comparing the average fantasy points per game versus average age of the top 12 players on each team, I plan to incorporate annotations that speak on the draft capital of certain teams that either have a ton or very little draft capital. I
+
+### Preliminary code
 
 ```{r}
-# Calculate average age and average fp_g for each fantasy team
+# Calculate average age and average fp_g for each fantasy team 
 # Manually add draft capital for each team 
 team_averages <- fantrax_data %>%
   group_by(fantasy_team) %>%
@@ -111,34 +117,41 @@ team_averages <- fantrax_data %>%
     AverageAge = mean(age, na.rm = TRUE),
     AverageFpG = mean(fp_g, na.rm = TRUE)
   ) %>% 
-  mutate(draft_capital = c(10, 25, 5, 7, 40, 30, 25, 10, 10, 40, 15, 18))
-```
+  mutate(draft_capital = c(10, 25, 5, 7, 40, 30, 25, 10, 10, 40, 15, 18)) # Need to 
+                                                                          # formalize
 
-### Plots
+# Add team logos as points
+team_averages$logo_path <- c("images/orcas.png", "images/bigfoots.png", 
+                             "images/BBB.png", "images/crusaders.png",
+                             "images/hounds.png", "images/scorpions.png",
+                             "images/milkers.png", "images/pilots.png", 
+                             "images/swell.png", "images/serpents.png", 
+                             "images/stotches.png", "images/starks.png")
 
-#### #1: Ridge plot (broad audience)
-
--   One ridge per fantasy team
-
--   Data points on each ridge are players fp_g
-
--   Shade is the average age of each fantasy team
-
--   Order from highest to lowest fp_g average
-
-```{r}
-# Create team logos dataframe
+# Define team logos 
 logos <- data.frame(team = c("Anacortes", "Beaverton", "Bikini Bottom",
                              "Cream City", "Helsinki", "Las Vegas", "Malibu",
                              "San Diego", "Santa Barbara", "Slytherin", 
-                             "Stotches", "Winterfell"),
+                             "Scottsdale", "Winterfell"),
                     logo = c("images/orcas.png", "images/bigfoots.png", 
                              "images/BBB.png", "images/crusaders.png",
                              "images/hounds.png", "images/scorpions.png",
                              "images/milkers.png", "images/pilots.png", 
                              "images/swell.png", "images/serpents.png", 
                              "images/stotches.png", "images/starks.png"))
+```
 
+### Plots
+
+#### #1: Ridge plot (broad audience)
+
+Here is the mock-up of the ridge plot. Sorry my handwriting isn't the best, I was doing this on the plane and it was a little bumpy so the ridges aren't as smooth as they could be.
+
+```{r}
+knitr::include_graphics('images/ridge_sketch.png')
+```
+
+```{r}
 # Calculate the average age for each fantasy team
 team_avg_age <- fantrax_data %>%
   group_by(fantasy_team) %>%
@@ -159,8 +172,7 @@ team_order <- fantrax_data %>%
 fantrax_data$fantasy_team <- factor(fantrax_data$fantasy_team, levels = team_order)
 
 # Create ridge plot
-ridge_plot <- ggplot(fantrax_data, aes(x = fp_g, y = fantasy_team, fill = AverageAge)) +
-  geom_density_ridges(
+ridge_plot <- ggplot(fantrax_data, aes(x = fp_g, y = fantasy_team, fill = AverageAge)) + geom_density_ridges(
     aes(height = ..density..), 
     alpha = 0.5, 
     scale = 2, 
@@ -187,18 +199,20 @@ ridge_plot <- ggplot(fantrax_data, aes(x = fp_g, y = fantasy_team, fill = Averag
 ridge_logos <- ridge_plot + 
   geom_image(data = logos, aes(x = -20, y = team, image = logo), size = 0.07, inherit.aes = FALSE)
 
+# Display ridge plot
 ridge_logos
 
+# Save ridge plot
 ggsave("images/ridge.png", ridge_logos, width = 10, height = 6, dpi = 300)
 ```
 
 #### #2: Sunburst plot (presentation)
 
--   Break up each fantasy team into 3 groups: under 25, 25-29, and over 30
+Here is the sketched version:
 
--   Show the total fp_g for each fantasy team in the first layer, how their scores break down for each age group in second layer (0th layer is total fantasy points scored in the whole league)
-
--   Color coordinate by team colors I have defined
+```{r, echo=FALSE}
+knitr::include_graphics('images/sunburst_sketch.png')
+```
 
 ```{r}
 # Updating data to add player age groups
@@ -225,7 +239,7 @@ snbrst_1 <- snbrst_0 +
   geom_text(aes(x=1, y=total_pts/2, label=paste('Total fantasy league points:', comma(total_pts))), color='white')
 
 # Testing first polar coord flip 
-snbrst_1 + coord_polar('y')
+# snbrst_1 + coord_polar('y')
 
 # Adding stacked bar chart with each teams total fantasy points
 snbrst_2 <- snbrst_1 +
@@ -236,12 +250,9 @@ snbrst_2 <- snbrst_1 +
 
 # Adding third column to break up teams into age groups
 # Combine total fantasy points by age group for each team
-total_fpts_by_age_team <- total_fpts_by_age_team %>%
-  mutate(team_age_group = interaction(fantasy_team, age_group, sep = " - ")) %>%
-  arrange(fantasy_team, age_group)
-
-total_fpts_by_age_team$team_age_group <- factor(total_fpts_by_age_team$team_age_group, levels = unique(total_fpts_by_age_team$team_age_group))
-
+total_fpts_by_age_team <- fantrax_data %>%
+  group_by(fantasy_team, age_group) %>%
+  summarize(total_pts = sum(f_pts), .groups = 'drop')
 
 snbrst_3 <- snbrst_2 +
   geom_bar(data = total_fpts_by_age_team, 
@@ -251,26 +262,38 @@ snbrst_3 <- snbrst_2 +
 # Convert to polar coordinates to achieve the sunburst effect
 snbrst_3 + coord_polar('y')
 
-fig <- plot_ly(total_fpts_by_age_team, ids = ~fantasy_team, labels = ~age_group, values = ~total_pts, type = 'sunburst', branchvalues = 'total')
-fig <- fig %>% layout(margin = list(l=0, r=0, b=0, t=0))
-fig
 ```
+
+This plot is still a mess, I'll need more time over the next week and a half to finish it up and to really understand how to code it. I think that the other two plots are pretty close to finished, but I'll speak on this graph more later in the assignment.
 
 #### #3: Scatter plot (domain expert)
 
--   Shade points by draft capital
+Here is my mocked up version:
 
--   Clarify how draft capital is calculated
+```{r, echo=FALSE}
+knitr::include_graphics('images/scatter_sketch.png')
+```
 
 ```{r}
-
-# Add team logos as points
-team_averages$logo_path <- c("images/orcas.png", "images/bigfoots.png", 
-                             "images/BBB.png", "images/crusaders.png",
-                             "images/hounds.png", "images/scorpions.png",
-                             "images/milkers.png", "images/pilots.png", 
-                             "images/swell.png", "images/serpents.png", 
-                             "images/stotches.png", "images/starks.png")
+### Testing different player filter for the plot -- thinking top 12 will be best
+# top_players_by_team <- fantrax_data %>%
+#   group_by(fantasy_team) %>%
+#   slice_max(order_by = fp_g, n = 12) %>%
+#   ungroup()
+# 
+# team_averages_top12 <- top_players_by_team %>%
+#   group_by(fantasy_team) %>%
+#   summarise(
+#     AverageAge = mean(age, na.rm = TRUE),
+#     AverageFpG = mean(fp_g, na.rm = TRUE)
+#   )
+# 
+# team_averages_top12$logo_path <- c("images/orcas.png", "images/bigfoots.png", 
+#                              "images/BBB.png", "images/crusaders.png",
+#                              "images/hounds.png", "images/scorpions.png",
+#                              "images/milkers.png", "images/pilots.png", 
+#                              "images/swell.png", "images/serpents.png", 
+#                              "images/stotches.png", "images/starks.png")
 
 # Create scatter plot with size based on draft_capital
 scatter <- ggplot(team_averages, aes(x = AverageAge, y = AverageFpG)) +
@@ -290,9 +313,35 @@ scatter <- ggplot(team_averages, aes(x = AverageAge, y = AverageFpG)) +
   expand_limits(x = c(min(team_averages$AverageAge) - 1, max(team_averages$AverageAge) + 1),
                 y = c(min(team_averages$AverageFpG) - 1, max(team_averages$AverageFpG) + 1)) # Stretch axes
 
+# Display scatter plot
 scatter
 
+# Save scatter plot image
 ggsave("images/scatter.png", scatter)
 ```
 
-#### 
+### Challenges and Future Work
+
+**Q: What challenges did you encounter or anticipate encountering as you continue to build / iterate on your visualizations in R?**
+
+My biggest issue is the sunburst plot. I need to spend more time on the code and understanding how to make it so the three age groups are directly outside of each fantasy team instead of grouped next to each other. I think I will look into other ways to make the plot in addition the polar coordinate method. I will be spending the majority of the time on the final assignment working on this, but I think my vision is clear and I just have to write the code to get it done.
+
+The ridge plot is pretty close to finished --- I'm happy with how the team logos look on the plot, but I need to spend time on choosing the right color palette to make it more accessible. I also played around with different images as the background, but I am now thinking that the court as the background is a little too busy. I want to incorporate some texture into this plot, similar to what is in the 2nd inspiration plot that I showed earlier.
+
+I've spent a lot of time playing around with different player filters -- selecting the top 10, 12, 15 or 20 players on each fantasy team to plot on the scatter plot. There is no clear best number that is best since each team's roster construction and depth is different. Some teams have 10 really good players, some only have 6, some might have more. I think I will go with the top 12 teams, since 10 players are in the starting line-up each night. While this isn't a techinical challenge, it will be important for me to keep playing around with these numbers to capture the things I want to reveal about the league in the scatter plot.
+
+**Q: What ggplot extension tools / packages do you need to use to build your visualizations? Are there any that we haven\'t covered in class that you\'ll be learning how to use for your visualizations?**
+
+The ridge plot and scatter plot are made using packages we have worked with in class, in addition to the *ggimage* package for adding the team logos into these two plots. The polar coordinate function is within the ggplot package, but we haven't worked with these types of plots so it is new to me. I think I will try to make the sunburst plot with *plotly*. I want to spend more time with the *sportyR* package to see if there are little details and images I can use from the library to incorporate into the final assignment, shoutout to Sevan for pointing me to this. Overall, there isn't anything too new or crazy in terms of libraries. I will add some annotations to the scatter plot to provide extra context (hence why it will be domain expert) about draft capital of each fantasy team.
+
+**Q: What feedback do you need from the instructional team and / or your peers to ensure that your intended message is clear?**
+
+I think I have a good sense of the things I want to improve for the final iteration of the assignment:
+
+-   Actually getting the sunburst plot to look how I want it to
+
+-   Adding *sportyR* visuals and aesthetics into the plots
+
+-   Adding annotations to the scatter plot for more context on the league
+
+-   Updating the color palettes to be more inclusive of color-blind issues
