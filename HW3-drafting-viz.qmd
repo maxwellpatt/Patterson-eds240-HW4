@@ -1,0 +1,298 @@
+---
+title: "HW #3 Drafting Viz"
+author: "Maxwell Patterson"
+date: 2024-02-27
+format:
+  html:
+    embed-resources: true
+---
+
+### Overview
+
+I plan to pursue the first option, where I will make 3 different graphics, each of which is tailored for a certain audience/purpose. While I like the idea of making an infographic with a fun theme and similar plots, I think this first option is the better route for me so I can practice targeting certain types of viewers (something our capstone group will be implementing so this is great practice!).
+
+My question is: **How are each of the teams in my fantasy basketball dyansty league constructed based on player age and fantasy scoring? Which teams are gunning for the championship this season, and which younger teams are set up for success in future years?**
+
+#### 
+
+### Variables
+
+Now I will dig into the variables I am interested in using from the data I have pulled from the Fantrax website where the league exists on. I'll start by reading in the data.
+
+```{r, echo=FALSE, message=FALSE}
+# Importing some libraries
+library(here)
+library(dplyr)
+library(tidyverse)
+library(janitor)
+library(knitr)
+library(sportyR)
+library(ggridges)
+library(reshape2)
+library(scales)
+library(extrafont)
+library(ggimage)
+library(plotly)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Clear environment for sanity
+rm(list=ls())
+
+# Import data
+fantrax_data_raw <- read.csv(here::here('data/fantrax_02_05_24_vHW.csv'))
+
+# Clean up data a bit
+fantrax_data <- fantrax_data_raw %>% 
+  janitor::clean_names()
+
+# Define team names for enhanced visualization
+teams <- c("STARKS", "SERP", "SDP", "Orcas", "maxpat01", "Jmarr237", "HBC", "GBRAYERS", "CCC", "BIGFOOTS", "BBB", "$C/$")
+
+# Define updated team names for enhanced visualization
+new_team_names <- c(STARKS = "Winterfell", SERP = "Slytherin", SDP = "San Diego",
+                    Orcas = "Anacortes", maxpat01 = "Santa Barbara", Jmarr237 = "Malibu",
+                    HBC = "Helsinki", GBRAYERS = "Stotches", CCC = "Cream City",
+                    BIGFOOTS = "Beaverton", BBB = "Bikini Bottom", "$C/$" = "Las Vegas")
+
+# Clean up column names and types
+fantrax_data <- fantrax_data %>% 
+  rename(fantasy_team = status) %>% 
+  filter(fantasy_team %in% teams) %>% 
+  mutate(
+    adp = as.numeric(adp),
+    x_d = as.numeric(gsub("%", "", x_d)) / 100, 
+    ros = as.numeric(gsub("%", "", ros)) / 100,
+    fantasy_team = case_when(
+      fantasy_team %in% names(new_team_names) ~ new_team_names[fantasy_team],
+      TRUE ~ fantasy_team  # Keeps the original name if not found 
+    )
+  ) %>% 
+  select(-c(id, opponent, x_d, x, )) # Remove unnecessary columns
+  
+```
+
+Now that the data has been imported and cleaned up a bit, I'll dive into the columns that are most important for the assignment, and some additional wrangling and updating that will be needed in order to answer the question at hand.
+
+```{r}
+# Display the dimensions of the data
+paste0("Number of rows in the data: ", nrow(fantrax_data))
+paste0("Number of columns in the data: ", ncol(fantrax_data))
+
+# Display the column names of the data
+col_names <- colnames(fantrax_data)
+print(col_names) # UPDATE THIS
+```
+
+The columns in this cleaned data set that we are most interested in for our scenario are `player`, `fantasy_team`, `f_pts`, `fp_g`, and `age`. Further manipulation and additions to the data will be done as needed to understand the relationships between age, fantasy points (f_pts), and fantasy points per game (fp_g) in the dynasty league.
+
+### Inspiration
+
+Here are some visuals that I have taken inspiration from when designing charts for my project:
+
+```{r, echo=FALSE}
+knitr::include_graphics('images/sunburst_ex.png')
+```
+
+This image made me confident that I can show each of the teams total fantasy scoring in a sunburst plot, and that it won't be too busy/cluttered. There are a ton of subgroups in the outer layers, so this graph inspired me to feel confident about building a sunburst plot of total fantasy points, then broken down by fantasy team, then broken down further by age group for each fantasy team.
+
+### 
+
+#### Preliminary code
+
+Here I'll define some important data frames that will be used in each of the plots below.
+
+```{r}
+# Calculate average age and average fp_g for each fantasy team
+# Manually add draft capital for each team 
+team_averages <- fantrax_data %>%
+  group_by(fantasy_team) %>%
+  summarise(
+    AverageAge = mean(age, na.rm = TRUE),
+    AverageFpG = mean(fp_g, na.rm = TRUE)
+  ) %>% 
+  mutate(draft_capital = c(10, 25, 5, 7, 40, 30, 25, 10, 10, 40, 15, 18))
+```
+
+### Plots
+
+#### #1: Ridge plot (broad audience)
+
+-   One ridge per fantasy team
+
+-   Data points on each ridge are players fp_g
+
+-   Shade is the average age of each fantasy team
+
+-   Order from highest to lowest fp_g average
+
+```{r}
+# Create team logos dataframe
+logos <- data.frame(team = c("Anacortes", "Beaverton", "Bikini Bottom",
+                             "Cream City", "Helsinki", "Las Vegas", "Malibu",
+                             "San Diego", "Santa Barbara", "Slytherin", 
+                             "Stotches", "Winterfell"),
+                    logo = c("images/orcas.png", "images/bigfoots.png", 
+                             "images/BBB.png", "images/crusaders.png",
+                             "images/hounds.png", "images/scorpions.png",
+                             "images/milkers.png", "images/pilots.png", 
+                             "images/swell.png", "images/serpents.png", 
+                             "images/stotches.png", "images/starks.png"))
+
+# Calculate the average age for each fantasy team
+team_avg_age <- fantrax_data %>%
+  group_by(fantasy_team) %>%
+  summarise(AverageAge = mean(age, na.rm = TRUE))
+
+# Merge the average age data with full data
+fantrax_data <- fantrax_data %>%
+  left_join(team_avg_age, by = "fantasy_team")
+
+# Order the teams by average fp_g
+team_order <- fantrax_data %>%
+  group_by(fantasy_team) %>%
+  summarise(AverageFpG = mean(fp_g, na.rm = TRUE)) %>%
+  arrange(desc(AverageFpG)) %>%
+  pull(fantasy_team)
+
+# Make sure data is ordered correctly for plotting
+fantrax_data$fantasy_team <- factor(fantrax_data$fantasy_team, levels = team_order)
+
+# Create ridge plot
+ridge_plot <- ggplot(fantrax_data, aes(x = fp_g, y = fantasy_team, fill = AverageAge)) +
+  geom_density_ridges(
+    aes(height = ..density..), 
+    alpha = 0.5, 
+    scale = 2, 
+    rel_min_height = 0.02
+  ) +
+  scale_fill_gradientn(
+    colors = c("green", "yellow", "red"), 
+    limits = c(min(fantrax_data$AverageAge), max(fantrax_data$AverageAge)),
+    name = "Average Age"
+  ) +
+  labs(title = "Fantasy Scoring Distribution by Team",
+       x = "Fantasy Points per Game",
+       y = "") +
+  theme_ridges(grid = FALSE) +
+  theme(
+    text = element_text(family = "Courier"),
+    plot.background = element_rect(fill = "antiquewhite"), # Placeholder 
+    panel.background = element_blank(), 
+    axis.title = element_text(size = 11), 
+    axis.text.y = element_text(size = 10), 
+  ) 
+
+# Add team logos to ridge plot
+ridge_logos <- ridge_plot + 
+  geom_image(data = logos, aes(x = -20, y = team, image = logo), size = 0.07, inherit.aes = FALSE)
+
+ridge_logos
+
+ggsave("images/ridge.png", ridge_logos, width = 10, height = 6, dpi = 300)
+```
+
+#### #2: Sunburst plot (presentation)
+
+-   Break up each fantasy team into 3 groups: under 25, 25-29, and over 30
+
+-   Show the total fp_g for each fantasy team in the first layer, how their scores break down for each age group in second layer (0th layer is total fantasy points scored in the whole league)
+
+-   Color coordinate by team colors I have defined
+
+```{r}
+# Updating data to add player age groups
+fantrax_data <- fantrax_data %>%
+  mutate(age_group = case_when(
+    age < 25 ~ "Under 25",
+    age >= 25 & age <= 29 ~ "25 to 29",
+    age > 29 ~ "Over 30"
+  )) %>% 
+  mutate(age_group = factor(age_group, levels = c("Over 30", "25 to 29", "Under 25")))
+
+# Combine total fantasy points by team
+total_fpts_by_team <- fantrax_data %>%
+  group_by(fantasy_team) %>%
+  summarize(total_pts = sum(f_pts), .groups = 'drop') %>%
+  arrange(desc(total_pts))
+
+# Creating base plot
+snbrst_0 <- ggplot(total_fpts_by_team) 
+
+# Creating inner circle (total fantasy points in the whole league)
+snbrst_1 <- snbrst_0 +
+  geom_bar(data = total_fpts_by_team, aes(x = 1, y = total_pts), fill="darkgrey", stat = 'identity') +
+  geom_text(aes(x=1, y=total_pts/2, label=paste('Total fantasy league points:', comma(total_pts))), color='white')
+
+# Testing first polar coord flip 
+snbrst_1 + coord_polar('y')
+
+# Adding stacked bar chart with each teams total fantasy points
+snbrst_2 <- snbrst_1 +
+  geom_bar(data = total_fpts_by_team, 
+           aes(x = 2, y = total_pts),
+           color = 'white', position = 'stack', stat = 'identity', size = 0.6) +
+  geom_text(data = total_fpts_by_team, aes(label = paste(fantasy_team, total_pts), x = 2, y = total_pts), position = 'stack')
+
+# Adding third column to break up teams into age groups
+# Combine total fantasy points by age group for each team
+total_fpts_by_age_team <- total_fpts_by_age_team %>%
+  mutate(team_age_group = interaction(fantasy_team, age_group, sep = " - ")) %>%
+  arrange(fantasy_team, age_group)
+
+total_fpts_by_age_team$team_age_group <- factor(total_fpts_by_age_team$team_age_group, levels = unique(total_fpts_by_age_team$team_age_group))
+
+
+snbrst_3 <- snbrst_2 +
+  geom_bar(data = total_fpts_by_age_team, 
+           aes(x = 3, y = total_pts, fill = age_group), 
+           color = 'white', position = 'stack', stat = 'identity', size = 0.6)
+
+# Convert to polar coordinates to achieve the sunburst effect
+snbrst_3 + coord_polar('y')
+
+fig <- plot_ly(total_fpts_by_age_team, ids = ~fantasy_team, labels = ~age_group, values = ~total_pts, type = 'sunburst', branchvalues = 'total')
+fig <- fig %>% layout(margin = list(l=0, r=0, b=0, t=0))
+fig
+```
+
+#### #3: Scatter plot (domain expert)
+
+-   Shade points by draft capital
+
+-   Clarify how draft capital is calculated
+
+```{r}
+
+# Add team logos as points
+team_averages$logo_path <- c("images/orcas.png", "images/bigfoots.png", 
+                             "images/BBB.png", "images/crusaders.png",
+                             "images/hounds.png", "images/scorpions.png",
+                             "images/milkers.png", "images/pilots.png", 
+                             "images/swell.png", "images/serpents.png", 
+                             "images/stotches.png", "images/starks.png")
+
+# Create scatter plot with size based on draft_capital
+scatter <- ggplot(team_averages, aes(x = AverageAge, y = AverageFpG)) +
+  geom_image(aes(image = logo_path), size = 0.12, alpha = 0.7) +
+  scale_size_continuous(range = c(3, 12)) + # Adjust size range for points
+  labs(
+    title = "Age versus Fantasy Scoring by Team",
+    x = "Average Age",
+    y = "Average Fantasy Points Per Game",
+    size = "Draft Capital"
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "Courier"),
+    plot.background = element_rect(fill = "antiquewhite")
+  ) +
+  expand_limits(x = c(min(team_averages$AverageAge) - 1, max(team_averages$AverageAge) + 1),
+                y = c(min(team_averages$AverageFpG) - 1, max(team_averages$AverageFpG) + 1)) # Stretch axes
+
+scatter
+
+ggsave("images/scatter.png", scatter)
+```
+
+#### 
